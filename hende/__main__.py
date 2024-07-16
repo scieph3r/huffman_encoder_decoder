@@ -74,18 +74,30 @@ def main():
     # create prefix code table
     prefix_code_map = tree.get_prefix_codes()
     
-    # writing output header
-    # convert character frequency list to binary
     with open(args.output, "wb") as fh:
-        # write list lengh
-        fh.write(len(char_freq_list).to_bytes(2, byteorder="big"))
-        # TODO: solve this mess
+        # writing output header
+        # convert character frequency list to binary
         for char, freq in char_freq_list:
             fh.write(char.encode("utf-8"))
+            # delimiter
             fh.write("\0".encode("utf-8"))
             fh.write(freq.to_bytes(4, byteorder="big"))
-            print("\0".encode("utf-8"))
+            # delimiter
             fh.write("\0".encode("utf-8"))
+        # end of header
+        for i in range(4):
+            fh.write("\0".encode("utf-8"))
+        # encode the text
+        compressed_text = ""
+        for char in data:
+            compressed_text += prefix_code_map[char]
+        # pad for easier binary writing
+        compressed_text += "".zfill(len(compressed_text) % 8)
+        i = 0
+        while i < len(compressed_text):
+            fh.write(int(compressed_text[i:i+8], 2).to_bytes(1, byteorder="big"))
+            i += 8
+
     return 0
 
 def create_tree(char_freq_lst):
