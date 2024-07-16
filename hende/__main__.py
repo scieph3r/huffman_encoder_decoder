@@ -11,7 +11,6 @@ class FrequencyTree:
     def __init__(self, root):
         self.root = root
 
-    # TODO: write this pls
     def traverse(self, node, code, mapping):
         if node == None:
             return
@@ -32,6 +31,8 @@ def main():
 
     # add arguments
     parser.add_argument("filepath", type=str, help="the file to be compressed")
+    parser.add_argument("output", type=str, help="the output file")
+    parser.add_argument("-x", action="store_true", help="used to indicate decompression")
 
     # parse arguments
     args = parser.parse_args()
@@ -73,6 +74,18 @@ def main():
     # create prefix code table
     prefix_code_map = tree.get_prefix_codes()
     
+    # writing output header
+    # convert character frequency list to binary
+    with open(args.output, "wb") as fh:
+        # write list lengh
+        fh.write(len(char_freq_list).to_bytes(2, byteorder="big"))
+        # TODO: solve this mess
+        for char, freq in char_freq_list:
+            fh.write(char.encode("utf-8"))
+            fh.write("\0".encode("utf-8"))
+            fh.write(freq.to_bytes(4, byteorder="big"))
+            print("\0".encode("utf-8"))
+            fh.write("\0".encode("utf-8"))
     return 0
 
 def create_tree(char_freq_lst):
