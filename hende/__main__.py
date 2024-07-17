@@ -37,66 +37,81 @@ def main():
     # parse arguments
     args = parser.parse_args()
 
-    fh = None
-    date = None
-
     # open the file
     try:
         fh = open(args.filepath, "r")
     except Exception:
         print(f"unable to open file: {args.filepath}")
         return 1
+    # compressing functionality    
+    if not args.x:
+        # read the file
+        try:
+            data = fh.read()
+        except Exception:
+            print("Something went wrong:(")
+            fh.close()
+            return 2
     
-    # read the file
-    try:
-        data = fh.read()
-    except Exception:
-        print("Something went wrong:(")
+        # close the file
         fh.close()
-        return 2
-    
-    # close the file
-    fh.close()
-    
-    # get character frequency
-    char_freq = get_character_count(data)
-    
-    # map the characters to their frequency and sort them
-    char_freq_list = list(map(lambda x: (x, char_freq[x]), char_freq.keys()))
-    char_freq_list.sort(key=lambda x: x[1], reverse=True)
-    
-    # garbage collection
-    char_freq = None
 
-    # create huffman tree
-    tree = create_tree(char_freq_list)
+        # get character frequency
+        char_freq = get_character_count(data)
     
-    # create prefix code table
-    prefix_code_map = tree.get_prefix_codes()
+        # map the characters to their frequency and sort them
+        char_freq_list = list(map(lambda x: (x, char_freq[x]), char_freq.keys()))
+        char_freq_list.sort(key=lambda x: x[1], reverse=True)
     
-    with open(args.output, "wb") as fh:
-        # writing output header
-        # convert character frequency list to binary
-        for char, freq in char_freq_list:
-            fh.write(char.encode("utf-8"))
-            # delimiter
-            fh.write("\0".encode("utf-8"))
-            fh.write(freq.to_bytes(4, byteorder="big"))
-            # delimiter
-            fh.write("\0".encode("utf-8"))
-        # end of header
-        for i in range(4):
-            fh.write("\0".encode("utf-8"))
-        # encode the text
-        compressed_text = ""
-        for char in data:
-            compressed_text += prefix_code_map[char]
-        # pad for easier binary writing
-        compressed_text += "".zfill(len(compressed_text) % 8)
-        i = 0
-        while i < len(compressed_text):
-            fh.write(int(compressed_text[i:i+8], 2).to_bytes(1, byteorder="big"))
-            i += 8
+        # garbage collection
+        char_freq = None
+
+        # create huffman tree
+        tree = create_tree(char_freq_list)
+    
+        # create prefix code table
+        prefix_code_map = tree.get_prefix_codes()
+    
+        with open(args.output, "wb") as fh:
+            print("compressing...")
+            # writing output header
+            # convert character frequency list to binary
+            fh.write(len(char_freq_list).to_bytes(2, byteorder="big"))
+            for char, freq in char_freq_list:
+                fh.write(char.encode("utf-8"))
+                # delimiter
+                fh.write("\0".encode("utf=8"))
+                fh.write(freq.to_bytes(4, byteorder="big"))
+            # encode the text
+            compressed_text = ""
+            for char in data:
+                compressed_text += prefix_code_map[char]
+            # pad for easier binary writing
+            compressed_text += "".zfill(len(compressed_text) % 8)
+            i = 0
+            while i < len(compressed_text):
+                fh.write(int(compressed_text[i:i+8], 2).to_bytes(1, byteorder="big"))
+                i += 8
+    else:
+        # read header and recreate character frequency mapping
+        char_freq_map = {}
+        with open(args.filepath, "rb") as fh:
+            header_length = int.from_bytes(fh.read(2), byteorder="big")
+            for _ in range(header_length):
+                char_code = b""
+                while True:
+                    byte = fh.read(1)
+                    if byte is None:
+                        print("something went wrong:(")
+                        return 3
+                    try:
+                        if byte.decode("utf-8") == "\0":
+                            break
+                    except Exception:
+                        pass
+                    char_code += byte
+                freq = int.from_bytes(fh.read(4), byteorder="big")
+                char_freq_map[char_code.decode("utf-8")] = freq
 
     return 0
 
